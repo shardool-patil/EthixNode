@@ -1,0 +1,38 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: ethixnode-backend
+
+  # THIS TELLS SPRING TO MERGE APPLICATION-SECRETS.YML IN THE BACKGROUND
+  profiles:
+    include: secrets
+  
+  datasource:
+    url: jdbc:postgresql://localhost:5432/ethixnode_db
+    username: ethix_admin
+    password: hackathon_password
+    driver-class-name: org.postgresql.Driver
+  
+  jpa:
+    show-sql: true
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+
+  # NOTICE CLIENT ID AND SECRET ARE GONE FROM HERE
+  security:
+    oauth2:
+      client:
+        registration:
+          github:
+            redirectUri: "{baseUrl}/login/oauth2/code/{registrationId}"
+
+ethixnode:
+  ai:
+    service:
+      url: http://localhost:5000

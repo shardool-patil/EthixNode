@@ -50,6 +50,7 @@ body {
   font-weight: 700;
   font-size: 1.25rem;
   letter-spacing: -0.5px;
+  z-index: 10;
 }
 
 .logo-icon {
@@ -103,6 +104,9 @@ body {
 }
 
 .nav-cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex: 1;
   background: #fd366e;
   color: white;
@@ -332,21 +336,18 @@ body {
   letter-spacing: 2px;
 }
 
-/* =========================================
-   Global Live Transaction Feed (UPDATED SPACING)
-   ========================================= */
 .live-feed-section {
   width: 100%;
   border-top: 1px solid rgba(255, 255, 255, 0.05);
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   background: rgba(0, 0, 0, 0.3);
-  padding: 24px 0; /* Increased inner padding */
+  padding: 24px 0;
   overflow: hidden;
   display: flex;
   align-items: center;
   gap: 24px;
-  margin-top: 80px; /* Increased vertical gap */
-  margin-bottom: 80px; /* Increased vertical gap */
+  margin-top: 80px;
+  margin-bottom: 80px;
 }
 
 .feed-header {
@@ -390,9 +391,9 @@ body {
 
 .marquee-track {
   display: flex;
-  gap: 24px; /* Increased gap between cards */
+  gap: 24px;
   width: max-content;
-  animation: marquee 35s linear infinite; /* Slightly slower for readability */
+  animation: marquee 35s linear infinite;
 }
 
 .marquee-track:hover {
@@ -447,10 +448,6 @@ body {
   margin-top: 4px;
 }
 
-
-/* =========================================
-   Market Carousel Section (Split Layout)
-   ========================================= */
 .market-carousel-section {
   margin-top: 150px;
   padding: 80px 0;
@@ -569,10 +566,6 @@ body {
   color: #a1a1aa;
 }
 
-
-/* =========================================
-   Comparison Section
-   ========================================= */
 .comparison-section {
   margin-top: 150px;
 }
@@ -610,10 +603,6 @@ body {
   text-align: center;
 }
 
-
-/* =========================================
-   Simulation Section
-   ========================================= */
 .simulation-section {
   margin-top: 150px;
   padding-bottom: 150px;
@@ -695,9 +684,9 @@ label {
   font-weight: 500;
 }
 
-select, input {
+select, input[type="number"], input[type="text"], input[type="email"], input[type="password"] {
   width: 100%;
-  background: rgba(0, 0, 0, 0.2);
+  background: #18181b;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
   padding: 12px 16px;
@@ -745,7 +734,7 @@ select:focus, input:focus {
 }
 
 .primary-btn:disabled {
-  opacity: 0.6;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
@@ -862,12 +851,395 @@ select:focus, input:focus {
   text-align: center;
 }
 
-.sparkline-svg path {
-  stroke-dasharray: 500;
-  stroke-dashoffset: 500;
-  animation: drawPath 3s forwards ease-in-out;
+.user-profile-nav {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 6px 12px;
+  border-radius: 100px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-@keyframes drawPath {
-  to { stroke-dashoffset: 0; }
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg, #ec4899, #8b5cf6);
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: #fff;
+}
+
+.user-name {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #e4e4e7;
+}
+
+.logout-icon-btn {
+  background: none;
+  border: none;
+  color: #71717a;
+  cursor: pointer;
+  display: flex;
+  padding: 4px;
+  transition: color 0.2s;
+}
+
+.logout-icon-btn:hover {
+  color: #ef4444;
+}
+
+.w-full {
+  width: 100%;
+}
+
+
+/* =========================================
+   Full Screen Split Auth Page 
+   ========================================= */
+
+.auth-page-wrapper {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  z-index: 9999;
+  background-color: #111113;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.auth-left, .auth-right {
+  width: 50%;
+  height: 100%;
+}
+
+.auth-left {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 60px;
+  background-color: #0d0d10;
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.abstract-glow-container {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.glow-orb-1 {
+  position: absolute; top: -10%; left: -20%;
+  width: 80%; height: 80%;
+  background: radial-gradient(circle, rgba(253, 54, 110, 0.6) 0%, transparent 60%);
+  filter: blur(120px);
+}
+
+.glow-orb-2 {
+  position: absolute; bottom: -20%; right: -10%;
+  width: 70%; height: 70%;
+  background: radial-gradient(circle, rgba(253, 54, 110, 0.4) 0%, transparent 60%);
+  filter: blur(100px);
+}
+
+.abstract-swoop {
+  position: absolute; top: 10%; left: -20%;
+  width: 150%; height: 120%;
+  border: 120px solid transparent;
+  border-top-color: #fd366e;
+  border-right-color: #ff5f56;
+  border-radius: 40%;
+  filter: blur(30px);
+  transform: rotate(-15deg);
+  opacity: 0.6;
+}
+
+.auth-left-content {
+  position: relative;
+  z-index: 1;
+}
+
+.auth-left-content h1 {
+  font-size: 3.2rem; /* Reduced from 4.5rem */
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -1.5px;
+  margin: 0;
+}
+
+.auth-left-content h1 span {
+  color: #fd366e;
+}
+
+.auth-right {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow-y: auto;
+  background-color: #111113;
+}
+
+/* Updated Sleek Close Button */
+.close-auth-btn {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: transparent;
+  border: none;
+  color: #71717a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.close-auth-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
+.auth-form-container {
+  width: 100%;
+  max-width: 360px; /* Slightly narrower */
+  padding: 0 20px;
+}
+
+.auth-form-container h2 {
+  font-size: 1.6rem;
+  font-weight: 600;
+  margin: 0 0 20px 0; /* Tighter margin */
+}
+
+.oauth-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  background: #18181b;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  padding: 12px; /* Reduced from 14px */
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: 16px; /* Tighter margin */
+}
+
+.oauth-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 16px 0; /* Tighter margin */
+  color: #71717a;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+
+.divider::before, .divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.divider::before { margin-right: 16px; }
+.divider::after { margin-left: 16px; }
+
+/* Tighter Form Spacing */
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px; /* Reduced from 20px */
+}
+
+.form-group label {
+  margin-bottom: 6px;
+}
+
+select, input[type="number"], input[type="text"], input[type="email"], input[type="password"] {
+  padding: 10px 14px; /* Reduced from 12px 16px */
+  font-size: 0.95rem;
+}
+
+.auth-info-text {
+  font-size: 0.75rem;
+  color: #a1a1aa;
+  margin-top: -6px;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.terms-checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 8px; /* Tighter margin */
+  font-size: 0.8rem;
+  color: #a1a1aa;
+  line-height: 1.4;
+}
+
+.terms-checkbox input[type="checkbox"] {
+  width: auto;
+  margin-top: 2px;
+  accent-color: #fd366e;
+}
+
+.terms-checkbox a {
+  color: #ffffff;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.auth-toggle {
+  text-align: center;
+  margin-top: 16px; /* Tighter margin */
+  font-size: 0.85rem;
+  color: #a1a1aa;
+}
+
+.auth-toggle span {
+  color: #ffffff;
+  font-weight: 600;
+  cursor: pointer;
+  margin-left: 6px;
+}
+
+.auth-toggle span:hover {
+  text-decoration: underline;
+}
+
+/* =========================================
+   Fullscreen Animated Loader
+   ========================================= */
+
+.fullscreen-loader {
+  height: 100vh;
+  width: 100vw;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: #111113;
+  color: white;
+  gap: 32px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 99999;
+}
+
+.loader-logo-container {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  animation: fadePulse 2s infinite ease-in-out;
+}
+
+.pulsing-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, #fd366e 0%, #ff5f56 100%);
+  color: #fff;
+  font-weight: 800;
+  font-size: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 0 30px rgba(253, 54, 110, 0.4);
+}
+
+.loader-text {
+  font-size: 2.2rem;
+  font-weight: 800;
+  letter-spacing: -1px;
+}
+
+.progress-bar-container {
+  width: 220px;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+
+.progress-bar-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 40%;
+  background: linear-gradient(90deg, transparent, #fd366e, #ff5f56, transparent);
+  border-radius: 4px;
+  animation: slideProgress 1.5s infinite ease-in-out;
+}
+
+@keyframes fadePulse {
+  0%, 100% { opacity: 0.6; transform: scale(0.97); }
+  50% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes slideProgress {
+  0% { left: -50%; }
+  100% { left: 100%; }
+}
+
+/* =========================================
+   Toast Popup Notification
+   ========================================= */
+.toast-popup {
+  position: fixed;
+  top: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(239, 68, 68, 0.95);
+  backdrop-filter: blur(8px);
+  color: white;
+  padding: 14px 24px;
+  border-radius: 10px;
+  box-shadow: 0 10px 40px rgba(239, 68, 68, 0.3);
+  z-index: 99999;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  animation: slideDown 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+@keyframes slideDown {
+  from { top: -50px; opacity: 0; transform: translate(-50%, -20px); }
+  to { top: 30px; opacity: 1; transform: translate(-50%, 0); }
 }
