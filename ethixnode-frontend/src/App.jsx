@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
+import { AreaChart, Area, ResponsiveContainer, Tooltip, YAxis, XAxis } from 'recharts';
 import './App.css';
 
 const SUPPORTED_CURRENCIES = [
@@ -53,27 +54,57 @@ const GlobalTransactionFeed = () => {
   );
 };
 
-const RealTimeSparkline = ({ data, trend }) => {
-  const width = 150;
-  const height = 40;
-  const color = trend === 'SEND_NOW' ? '#10b981' : '#ef4444';
-
+const InteractiveChart = ({ data, trend }) => {
   if (!data || data.length === 0) return null;
+
+  const color = trend === 'SEND_NOW' ? '#10b981' : '#ef4444';
+  
+  const chartData = data.map((val, i) => {
+    const daysAgo = data.length - 1 - i;
+    const date = new Date();
+    date.setDate(date.getDate() - daysAgo);
+    const dateLabel = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    
+    return {
+      time: dateLabel,
+      rate: val
+    };
+  });
 
   const min = Math.min(...data);
   const max = Math.max(...data);
-  const range = max - min || 1;
-
-  const points = data.map((val, i) => {
-    const x = (i / (data.length - 1)) * width;
-    const y = height - ((val - min) / range) * height;
-    return `${x},${y}`;
-  }).join(' L ');
+  const padding = (max - min) * 0.1 || 1;
 
   return (
-    <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" className="sparkline-svg">
-      <path d={`M ${points}`} fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
+    <ResponsiveContainer width="100%" height="100%">
+      <AreaChart data={chartData}>
+        <defs>
+          <linearGradient id={`gradient-${trend}`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor={color} stopOpacity={0.3}/>
+            <stop offset="95%" stopColor={color} stopOpacity={0}/>
+          </linearGradient>
+        </defs>
+        <XAxis dataKey="time" hide />
+        <YAxis domain={[min - padding, max + padding]} hide />
+        <Tooltip 
+          contentStyle={{ backgroundColor: '#18181b', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }}
+          itemStyle={{ color: color, fontWeight: 'bold' }}
+          labelStyle={{ color: '#a1a1aa', fontSize: '0.8rem', marginBottom: '4px' }}
+          formatter={(value) => [`₹${value.toFixed(2)}`, 'Market Rate']}
+          labelFormatter={(label) => label}
+          animationDuration={200}
+        />
+        <Area 
+          type="monotone" 
+          dataKey="rate" 
+          stroke={color} 
+          strokeWidth={3} 
+          fillOpacity={1} 
+          fill={`url(#gradient-${trend})`} 
+          isAnimationActive={true}
+        />
+      </AreaChart>
+    </ResponsiveContainer>
   );
 };
 
@@ -122,12 +153,11 @@ function App() {
   const [activeSlide, setActiveSlide] = useState(0);
   
   const [pulseData, setPulseData] = useState({
-    USD: { current_rate: 92.88, forecast_trend: 'WAIT', history: [92.1, 92.4, 93.1, 94.8, 93.5, 92.88] },
-    EUR: { current_rate: 107.28, forecast_trend: 'WAIT', history: [106.1, 106.5, 108.4, 109.2, 108.1, 107.28] },
-    GBP: { current_rate: 122.92, forecast_trend: 'WAIT', history: [125.8, 124.9, 124.1, 123.5, 123.1, 122.92] }
+    USD: { current_rate: 92.88, change_pct: 0.12, forecast_trend: 'WAIT', history: [92.1, 92.4, 93.1, 94.8, 93.5, 92.88] },
+    EUR: { current_rate: 107.28, change_pct: -0.05, forecast_trend: 'WAIT', history: [106.1, 106.5, 108.4, 109.2, 108.1, 107.28] },
+    GBP: { current_rate: 122.92, change_pct: 0.34, forecast_trend: 'WAIT', history: [125.8, 124.9, 124.1, 123.5, 123.1, 122.92] }
   });
 
-  // Carousel Auto-slide logic
   useEffect(() => {
     const timer = setInterval(() => {
       setActiveSlide((prev) => (prev + 1) % carouselPairs.length);
@@ -135,18 +165,21 @@ function App() {
     return () => clearInterval(timer);
   }, []);
 
-  useEffect(() => {
-    const fetchPulse = async () => {
-      try {
-        const response = await axios.get('http://localhost:8080/api/transactions/rates');
-        if (Object.keys(response.data).length > 0) {
-           setPulseData(response.data);
-        }
-      } catch (err) {
-        console.error("Live Sync deferred. Using real-time baseline.");
+  const fetchPulse = async () => {
+    try {
+      const response = await axios.get('http://localhost:8080/api/transactions/rates');
+      if (Object.keys(response.data).length > 0) {
+         setPulseData(response.data);
       }
-    };
+    } catch (err) {
+      console.error("Live Sync deferred. Using fallback baseline data.");
+    }
+  };
+
+  useEffect(() => {
     fetchPulse();
+    const intervalId = setInterval(fetchPulse, 60000);
+    return () => clearInterval(intervalId);
   }, []);
 
   const handleSimulate = async (e) => {
@@ -168,6 +201,7 @@ function App() {
         amountSent: parseFloat(amountSent)
       });
       setResult(response.data);
+      await fetchPulse();
     } catch (err) {
       setError('Connection to transaction ledger timed out.');
     } finally {
@@ -290,7 +324,7 @@ function App() {
             <div className="carousel-text">
                <span className="eyebrow">Real-time Forecasts</span>
                <h2>Live Market Pulse</h2>
-               <p>Track global liquidity and predictive currency trends against the INR. Our AI updates every 60 seconds to ensure you settle at the peak.</p>
+               <p>Track global liquidity and predictive currency trends against the INR. Hover over the charts to see historical price points. Syncs dynamically on interaction.</p>
                <div className="carousel-dots">
                  {carouselPairs.map((_, i) => (
                    <span key={i} className={`dot ${activeSlide === i ? 'active' : ''}`} onClick={() => setActiveSlide(i)}></span>
@@ -308,9 +342,19 @@ function App() {
                            <span className="pulse-dot"></span> LIVE
                         </div>
                       </div>
-                      <div className="trend-rate">{pulseData[code].current_rate.toFixed(2)}</div>
+                      
+                      <div className="trend-rate" style={{ display: 'flex', alignItems: 'center' }}>
+                        {pulseData[code]?.current_rate?.toFixed(2)}
+                        <span 
+                          className={pulseData[code]?.change_pct >= 0 ? 'text-green' : 'text-red'} 
+                          style={{ fontSize: '1.2rem', marginLeft: '16px', fontWeight: '600' }}
+                        >
+                          {pulseData[code]?.change_pct > 0 ? '+' : ''}{pulseData[code]?.change_pct?.toFixed(2)}%
+                        </span>
+                      </div>
+
                       <div className="trend-chart-large">
-                        <RealTimeSparkline data={pulseData[code].history} trend={pulseData[code].forecast_trend} />
+                        <InteractiveChart data={pulseData[code]?.history} trend={pulseData[code]?.forecast_trend} />
                       </div>
                     </div>
                  </div>
