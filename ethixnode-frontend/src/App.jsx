@@ -11,6 +11,48 @@ const SUPPORTED_CURRENCIES = [
   { code: 'SGD', name: 'Singapore Dollar' }
 ];
 
+const LIVE_TRANSACTIONS = [
+  { id: 'TX-992', from: 'EUR', to: 'INR', amount: '500.00', received: '53,450.00', status: 'SEND_NOW', time: '1.2s' },
+  { id: 'TX-412', from: 'USD', to: 'INR', amount: '1,250.00', received: '116,100.00', status: 'SEND_NOW', time: '0.8s' },
+  { id: 'TX-773', from: 'GBP', to: 'INR', amount: '300.00', received: '36,876.00', status: 'OVERRIDE', time: '1.5s' },
+  { id: 'TX-105', from: 'AED', to: 'INR', amount: '5,000.00', received: '126,500.00', status: 'SEND_NOW', time: '0.9s' },
+  { id: 'TX-882', from: 'EUR', to: 'INR', amount: '2,100.00', received: '224,490.00', status: 'SEND_NOW', time: '1.1s' },
+  { id: 'TX-334', from: 'SGD', to: 'INR', amount: '850.00', received: '52,275.00', status: 'SEND_NOW', time: '1.0s' },
+];
+
+const GlobalTransactionFeed = () => {
+  return (
+    <div className="live-feed-section">
+      <div className="feed-header">
+        <span className="pulse-dot"></span>
+        <span className="feed-title">Global Ledger Sync</span>
+      </div>
+      <div className="marquee-wrapper">
+        <div className="marquee-track">
+          {[...LIVE_TRANSACTIONS, ...LIVE_TRANSACTIONS].map((tx, idx) => (
+            <div key={`${tx.id}-${idx}`} className="feed-card">
+              <div className="feed-card-header">
+                <span className="tx-id">{tx.id}</span>
+                <span className="tx-time">Settled in {tx.time}</span>
+              </div>
+              <div className="feed-card-body">
+                <div className="tx-route">
+                  <strong>{tx.amount} {tx.from}</strong>
+                  <span className="arrow">➔</span>
+                  <strong>{tx.received} {tx.to}</strong>
+                </div>
+                <div className="tx-ai">
+                  AI Signal: <span className={tx.status.includes('SEND') ? 'text-green' : 'text-orange'}>{tx.status}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const RealTimeSparkline = ({ data, trend }) => {
   const width = 150;
   const height = 40;
@@ -30,7 +72,7 @@ const RealTimeSparkline = ({ data, trend }) => {
 
   return (
     <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" className="sparkline-svg">
-      <path d={`M ${points}`} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d={`M ${points}`} fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 };
@@ -76,13 +118,22 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   
-  // Updated with exact values from Google Results 2026-04-03
-  // History arrays adjusted to mimic the curves in your screenshots
+  const carouselPairs = ['USD', 'EUR', 'GBP'];
+  const [activeSlide, setActiveSlide] = useState(0);
+  
   const [pulseData, setPulseData] = useState({
     USD: { current_rate: 92.88, forecast_trend: 'WAIT', history: [92.1, 92.4, 93.1, 94.8, 93.5, 92.88] },
     EUR: { current_rate: 107.28, forecast_trend: 'WAIT', history: [106.1, 106.5, 108.4, 109.2, 108.1, 107.28] },
     GBP: { current_rate: 122.92, forecast_trend: 'WAIT', history: [125.8, 124.9, 124.1, 123.5, 123.1, 122.92] }
   });
+
+  // Carousel Auto-slide logic
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setActiveSlide((prev) => (prev + 1) % carouselPairs.length);
+    }, 4500);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     const fetchPulse = async () => {
@@ -126,21 +177,6 @@ function App() {
 
   const scrollToTool = () => {
     document.getElementById('simulation-engine').scrollIntoView({ behavior: 'smooth' });
-  };
-
-  const PulseCard = ({ code }) => {
-    const data = pulseData[code];
-    return (
-      <div className="glass-card trend-card">
-        <div className="trend-header">
-          <span className="pair">{code} / INR</span>
-        </div>
-        <div className="trend-rate">{data.current_rate.toFixed(2)}</div>
-        <div className="trend-chart">
-           <RealTimeSparkline data={data.history} trend={data.forecast_trend} />
-        </div>
-      </div>
-    );
   };
 
   return (
@@ -247,15 +283,39 @@ function App() {
           </div>
         </section>
 
-        <section className="market-trends-section">
-          <div className="section-heading">
-             <h2>Live Market Pulse</h2>
-             <p>Track high-volume currency pairs against the Indian Rupee in real-time.</p>
-          </div>
-          <div className="trends-grid">
-            <PulseCard code="USD" />
-            <PulseCard code="EUR" />
-            <PulseCard code="GBP" />
+        <GlobalTransactionFeed />
+
+        <section className="market-carousel-section">
+          <div className="carousel-container">
+            <div className="carousel-text">
+               <span className="eyebrow">Real-time Forecasts</span>
+               <h2>Live Market Pulse</h2>
+               <p>Track global liquidity and predictive currency trends against the INR. Our AI updates every 60 seconds to ensure you settle at the peak.</p>
+               <div className="carousel-dots">
+                 {carouselPairs.map((_, i) => (
+                   <span key={i} className={`dot ${activeSlide === i ? 'active' : ''}`} onClick={() => setActiveSlide(i)}></span>
+                 ))}
+               </div>
+            </div>
+            
+            <div className="carousel-card-viewer">
+               {carouselPairs.map((code, index) => (
+                 <div key={code} className={`carousel-slide ${activeSlide === index ? 'active' : ''}`}>
+                    <div className="glass-card trend-card large-variant">
+                      <div className="trend-header">
+                        <span className="pair">{code} / INR</span>
+                        <div className="live-badge">
+                           <span className="pulse-dot"></span> LIVE
+                        </div>
+                      </div>
+                      <div className="trend-rate">{pulseData[code].current_rate.toFixed(2)}</div>
+                      <div className="trend-chart-large">
+                        <RealTimeSparkline data={pulseData[code].history} trend={pulseData[code].forecast_trend} />
+                      </div>
+                    </div>
+                 </div>
+               ))}
+            </div>
           </div>
         </section>
 

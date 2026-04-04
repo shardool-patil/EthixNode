@@ -103,15 +103,16 @@ body {
 }
 
 .nav-cta {
-  background: rgba(255, 255, 255, 0.05);
+  flex: 1;
+  background: #fd366e;
   color: white;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 8px 20px;
+  border: none;
   border-radius: 8px;
-  font-weight: 500;
+  padding: 12px;
   font-size: 0.85rem;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background 0.2s;
 }
 
 .nav-cta:hover {
@@ -331,53 +332,247 @@ body {
   letter-spacing: 2px;
 }
 
-.market-trends-section {
-  margin-top: 150px;
-}
-
-.trends-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+/* =========================================
+   Global Live Transaction Feed (UPDATED SPACING)
+   ========================================= */
+.live-feed-section {
+  width: 100%;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(0, 0, 0, 0.3);
+  padding: 24px 0; /* Increased inner padding */
+  overflow: hidden;
+  display: flex;
+  align-items: center;
   gap: 24px;
+  margin-top: 80px; /* Increased vertical gap */
+  margin-bottom: 80px; /* Increased vertical gap */
 }
 
-.trend-card {
-  padding: 24px;
+.feed-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-left: 5%;
+  flex-shrink: 0;
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  padding-right: 24px;
+}
+
+.pulse-dot {
+  width: 8px;
+  height: 8px;
+  background: #10b981;
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+  70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+.feed-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #a1a1aa;
+}
+
+.marquee-wrapper {
+  flex-grow: 1;
+  overflow: hidden;
+  mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
+}
+
+.marquee-track {
+  display: flex;
+  gap: 24px; /* Increased gap between cards */
+  width: max-content;
+  animation: marquee 35s linear infinite; /* Slightly slower for readability */
+}
+
+.marquee-track:hover {
+  animation-play-state: paused;
+}
+
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.feed-card {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 12px 16px;
+  min-width: 260px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: background 0.2s;
+  cursor: default;
+}
+
+.feed-card:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.feed-card-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.7rem;
+  color: #a1a1aa;
+  font-family: monospace;
+}
+
+.tx-route {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.95rem;
+}
+
+.arrow {
+  color: #a1a1aa;
+  font-size: 0.8rem;
+}
+
+.tx-ai {
+  font-size: 0.75rem;
+  color: #a1a1aa;
+  margin-top: 4px;
+}
+
+
+/* =========================================
+   Market Carousel Section (Split Layout)
+   ========================================= */
+.market-carousel-section {
+  margin-top: 150px;
+  padding: 80px 0;
+}
+
+.carousel-container {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 100px;
+  align-items: center;
+}
+
+.carousel-text {
+  text-align: left;
+}
+
+.carousel-text h2 {
+  font-size: 3.5rem;
+  margin: 12px 0 24px 0;
+}
+
+.eyebrow {
+  color: #fd366e;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  font-size: 0.8rem;
+}
+
+.carousel-text p {
+  color: #a1a1aa;
+  line-height: 1.6;
+  font-size: 1.1rem;
+  max-width: 400px;
+}
+
+.carousel-dots {
+  display: flex;
+  gap: 10px;
+  margin-top: 30px;
+}
+
+.dot {
+  width: 30px;
+  height: 4px;
+  background: #333;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.dot.active {
+  background: #fd366e;
+  width: 50px;
+}
+
+.carousel-card-viewer {
+  position: relative;
+  height: 350px;
+}
+
+.carousel-slide {
+  position: absolute;
+  width: 100%;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+}
+
+.carousel-slide.active {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: all;
+}
+
+.glass-card {
+  background: #18181b;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 24px;
+  padding: 40px;
+}
+
+.large-variant {
+  background: linear-gradient(145deg, #1c1c1f 0%, #131315 100%);
 }
 
 .trend-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
 }
 
-.trend-header .pair {
+.pair {
   font-weight: 600;
-  color: #ffffff;
+  font-size: 1.2rem;
 }
 
 .trend-rate {
-  font-size: 2rem;
+  font-size: 3.5rem;
+  font-weight: 800;
+  margin: 20px 0;
+}
+
+.trend-chart-large {
+  height: 100px;
+  margin-top: 20px;
+}
+
+.live-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.7rem;
   font-weight: 700;
-  margin-bottom: 20px;
+  color: #a1a1aa;
 }
 
-.trend-chart {
-  height: 40px;
-  width: 100%;
-}
 
-.sparkline-svg path {
-  stroke-dasharray: 500;
-  stroke-dashoffset: 500;
-  animation: drawPath 3s forwards ease-in-out;
-}
-
-@keyframes drawPath {
-  to { stroke-dashoffset: 0; }
-}
-
+/* =========================================
+   Comparison Section
+   ========================================= */
 .comparison-section {
   margin-top: 150px;
 }
@@ -415,6 +610,10 @@ body {
   text-align: center;
 }
 
+
+/* =========================================
+   Simulation Section
+   ========================================= */
 .simulation-section {
   margin-top: 150px;
   padding-bottom: 150px;
@@ -442,13 +641,6 @@ body {
   gap: 24px;
   max-width: 900px;
   margin: 0 auto;
-}
-
-.glass-card {
-  background: #18181b;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 16px;
-  padding: 32px;
 }
 
 .card-header {
@@ -668,4 +860,14 @@ select:focus, input:focus {
   border-radius: 8px;
   font-size: 0.85rem;
   text-align: center;
+}
+
+.sparkline-svg path {
+  stroke-dasharray: 500;
+  stroke-dashoffset: 500;
+  animation: drawPath 3s forwards ease-in-out;
+}
+
+@keyframes drawPath {
+  to { stroke-dashoffset: 0; }
 }
