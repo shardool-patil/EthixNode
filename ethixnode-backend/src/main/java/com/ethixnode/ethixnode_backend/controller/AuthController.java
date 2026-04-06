@@ -77,38 +77,54 @@ public class AuthController {
 
         String name = "User";
         String email = "";
-        String avatar = ""; // <-- FIX 1: Initialized to empty string, NOT null
+        String avatar = ""; 
 
         Object principal = authentication.getPrincipal();
 
+        // If they logged in via GitHub
         // If they logged in via GitHub
         if (principal instanceof OAuth2User) {
             OAuth2User oauthUser = (OAuth2User) principal;
             name = oauthUser.getAttribute("name");
             if (name == null) name = oauthUser.getAttribute("login");
             
+            // --- THE FIX: HANDLE PRIVATE GITHUB EMAILS ---
             Object emailObj = oauthUser.getAttribute("email");
-            if (emailObj != null) email = emailObj.toString();
+            if (emailObj != null) {
+                email = emailObj.toString();
+            } else {
+                // If private, make a fake email using their GitHub username
+                email = oauthUser.getAttribute("login") + "@github.com"; 
+            }
             
             Object avatarObj = oauthUser.getAttribute("avatar_url");
             if (avatarObj != null) avatar = avatarObj.toString();
-        } 
+
+            // Auto-Save to PostgreSQL
+            if (email != null && !email.isEmpty()) {
+                Optional<User> existingUser = userRepository.findByEmail(email);
+                if (existingUser.isEmpty()) {
+                    User newUser = new User();
+                    newUser.setEmail(email);
+                    newUser.setName(name);
+                    newUser.setProvider("GITHUB");
+                    userRepository.save(newUser);
+                }
+            }
+        }
         // If they logged in via our local database
         else if (principal instanceof org.springframework.security.core.userdetails.User) {
             org.springframework.security.core.userdetails.User localPrincipal = (org.springframework.security.core.userdetails.User) principal;
             email = localPrincipal.getUsername();
-            // Fetch their real name from the DB
             Optional<User> dbUser = userRepository.findByEmail(email);
             if (dbUser.isPresent()) {
                 name = dbUser.get().getName();
             }
         }
 
-        // Safety check to ensure name isn't null before taking initials
         if (name == null || name.isEmpty()) name = "User";
         String initials = name.substring(0, 1).toUpperCase();
 
-        // <-- FIX 2: Map.of is now 100% safe because nothing is null
         return ResponseEntity.ok(Map.of(
             "name", name,
             "email", email,
