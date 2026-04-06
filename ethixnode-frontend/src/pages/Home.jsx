@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { AreaChart, Area, ResponsiveContainer, Tooltip, YAxis, XAxis } from 'recharts';
 import { Link } from 'react-router-dom';
+import WalletManager from '../components/WalletManager';
 
 // -------------------------------------------------------------
 // 1. ERROR BOUNDARY
@@ -368,6 +369,12 @@ export default function Home({ user, onLogout }) {
           </section>
 
           <GlobalTransactionFeed />
+
+          {user && (
+            <section className="app-wrapper" style={{ paddingTop: '60px' }}>
+              <WalletManager user={user} />
+            </section>
+          )}
 
           <section className="market-carousel-section">
             <div className="carousel-container">
