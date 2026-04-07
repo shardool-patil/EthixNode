@@ -1399,3 +1399,30 @@ select, input[type="number"], input[type="text"], input[type="email"], input[typ
 .warning-modal {
   border-top: 4px solid #ef4444;
 }
+
+/* Live Ledger Animation */
+.ledger-row {
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  transition: background-color 0.2s;
+}
+
+.ledger-row:hover {
+  background-color: rgba(255,255,255,0.02);
+}
+
+.slide-down {
+  animation: slideInDown 0.4s ease-out forwards;
+}
+
+@keyframes slideInDown {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px);
+    background-color: rgba(16, 185, 129, 0.1); /* Brief green flash */
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+    background-color: transparent;
+  }
+}

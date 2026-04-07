@@ -3,6 +3,7 @@ import axios from 'axios';
 import { AreaChart, Area, ResponsiveContainer, Tooltip, YAxis, XAxis } from 'recharts';
 import { Link } from 'react-router-dom';
 import WalletManager from '../components/WalletManager';
+import LiveLedger from '../components/LiveLedger';
 
 // -------------------------------------------------------------
 // 1. ERROR BOUNDARY
@@ -369,6 +370,10 @@ export default function Home({ user, onLogout }) {
           </section>
 
           <GlobalTransactionFeed />
+
+          <section className="app-wrapper" style={{ paddingTop: '40px' }}>
+            <LiveLedger />
+          </section>
 
           {user && (
             <section className="app-wrapper" style={{ paddingTop: '60px' }}>
