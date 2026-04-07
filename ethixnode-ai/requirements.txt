@@ -1,4 +1,10 @@
-Flask
-flask-cors
+# Core API Framework
+fastapi
+uvicorn
+
+# Data Validation
+pydantic
+
+# Data Processing & Market APIs (For your future ML roadmap)
 yfinance
 pandas

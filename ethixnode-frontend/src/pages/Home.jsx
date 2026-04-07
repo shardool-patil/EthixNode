@@ -47,12 +47,12 @@ const SUPPORTED_CURRENCIES = [
 ];
 
 const LIVE_TRANSACTIONS = [
-  { id: 'TX-992', from: 'EUR', to: 'INR', amount: '500.00', received: '53,450.00', status: 'SEND_NOW', time: '1.2s' },
+  { id: 'TX-992', from: 'EUR', to: 'INR', amount: '500.00', received: '53,640.00', status: 'SEND_NOW', time: '1.2s' },
   { id: 'TX-412', from: 'USD', to: 'INR', amount: '1,250.00', received: '116,100.00', status: 'SEND_NOW', time: '0.8s' },
   { id: 'TX-773', from: 'GBP', to: 'INR', amount: '300.00', received: '36,876.00', status: 'OVERRIDE', time: '1.5s' },
-  { id: 'TX-105', from: 'AED', to: 'INR', amount: '5,000.00', received: '126,500.00', status: 'SEND_NOW', time: '0.9s' },
-  { id: 'TX-882', from: 'EUR', to: 'INR', amount: '2,100.00', received: '224,490.00', status: 'SEND_NOW', time: '1.1s' },
-  { id: 'TX-334', from: 'SGD', to: 'INR', amount: '850.00', received: '52,275.00', status: 'SEND_NOW', time: '1.0s' },
+  { id: 'TX-105', from: 'AED', to: 'INR', amount: '5,000.00', received: '126,550.00', status: 'SEND_NOW', time: '0.9s' },
+  { id: 'TX-882', from: 'EUR', to: 'INR', amount: '2,100.00', received: '225,288.00', status: 'SEND_NOW', time: '1.1s' },
+  { id: 'TX-334', from: 'SGD', to: 'INR', amount: '850.00', received: '61,565.50', status: 'SEND_NOW', time: '1.0s' },
 ];
 
 // -------------------------------------------------------------
@@ -174,16 +174,22 @@ export default function Home({ user, onLogout }) {
   const [targetCurrency, setTargetCurrency] = useState('INR');
   const [amountSent, setAmountSent] = useState(1000);
   const [result, setResult] = useState(null);
+  
   const [loading, setLoading] = useState(false);
+  const [loadingText, setLoadingText] = useState('');
   const [error, setError] = useState(null);
   
-  const carouselPairs = ['USD', 'EUR', 'GBP'];
+  const carouselPairs = ['USD', 'EUR', 'GBP', 'SGD', 'AED'];
   const [activeSlide, setActiveSlide] = useState(0);
 
+  // THE FIX: The change_pct is now mathematically perfect based on the history array.
+  // ((Current Rate - Yesterday's Rate) / Yesterday's Rate) * 100
   const [pulseData, setPulseData] = useState({
-    USD: { current_rate: 92.88, change_pct: 0.12, forecast_trend: 'WAIT', history: [92.1, 92.4, 93.1, 94.8, 93.5, 92.88] },
-    EUR: { current_rate: 107.28, change_pct: -0.05, forecast_trend: 'WAIT', history: [106.1, 106.5, 108.4, 109.2, 108.1, 107.28] },
-    GBP: { current_rate: 122.92, change_pct: 0.34, forecast_trend: 'WAIT', history: [125.8, 124.9, 124.1, 123.5, 123.1, 122.92] }
+    USD: { current_rate: 92.88, change_pct: 0.14, forecast_trend: 'WAIT', history: [92.10, 92.40, 93.10, 92.50, 92.75, 92.88] },
+    EUR: { current_rate: 107.28, change_pct: -0.20, forecast_trend: 'WAIT', history: [106.10, 106.50, 108.40, 109.20, 107.50, 107.28] },
+    GBP: { current_rate: 122.92, change_pct: 0.34, forecast_trend: 'WAIT', history: [125.80, 124.90, 124.10, 123.50, 122.50, 122.92] },
+    SGD: { current_rate: 72.43, change_pct: 0.18, forecast_trend: 'SEND_NOW', history: [71.80, 72.10, 72.90, 73.20, 72.30, 72.43] },
+    AED: { current_rate: 25.31, change_pct: -0.16, forecast_trend: 'WAIT', history: [25.10, 25.20, 25.50, 25.40, 25.35, 25.31] }
   });
 
   useEffect(() => {
@@ -197,7 +203,7 @@ export default function Home({ user, onLogout }) {
     try {
       const response = await axios.get('http://localhost:8080/api/transactions/rates');
       if (response.data && typeof response.data === 'object' && !Array.isArray(response.data) && response.data.USD) {
-         setPulseData(response.data);
+         setPulseData(prev => ({...prev, ...response.data}));
       }
     } catch (err) {
       console.error("Live Sync deferred. Using fallback baseline data.", err.message);
@@ -206,8 +212,6 @@ export default function Home({ user, onLogout }) {
 
   useEffect(() => {
     fetchPulse();
-    const intervalId = setInterval(fetchPulse, 60000);
-    return () => clearInterval(intervalId);
   }, []);
 
   const handleSimulate = async (e) => {
@@ -223,17 +227,69 @@ export default function Home({ user, onLogout }) {
     setResult(null);
 
     try {
-      const response = await axios.post('http://localhost:8080/api/transactions/simulate', {
-        baseCurrency,
-        targetCurrency,
-        amountSent: parseFloat(amountSent)
+      setLoadingText('Initializing AI Engine...');
+      const aiResponse = await axios.post('http://localhost:8000/api/ai/predict', {
+        amount: parseFloat(amountSent),
+        base_currency: baseCurrency,
+        target_currency: targetCurrency,
+        network: 'EthixNode Direct'
       });
-      setResult(response.data);
+
+      const jobId = aiResponse.data.job_id;
+      
+      let aiResult = null;
+      let attempts = 0;
+      
+      while (!aiResult && attempts < 15) { 
+        attempts++;
+        setLoadingText(`Analyzing Volatility [Job: ${jobId.substring(0,6)}]... ${attempts}s`);
+        
+        await new Promise(resolve => setTimeout(resolve, 1000)); 
+        
+        const statusRes = await axios.get(`http://localhost:8000/api/ai/status/${jobId}`);
+        if (statusRes.data.status === 'COMPLETED') {
+          aiResult = statusRes.data.result;
+        }
+      }
+
+      if (!aiResult) throw new Error("AI Prediction Timed Out");
+
+      setLoadingText('Locking Ledger Math...');
+      
+      let sbData = {};
+      try {
+        const sbResponse = await axios.post('http://localhost:8080/api/transactions/simulate', {
+          baseCurrency,
+          targetCurrency,
+          amountSent: parseFloat(amountSent)
+        });
+        sbData = sbResponse.data;
+      } catch (sbErr) {
+        console.warn("Spring Boot offline. Using frontend fallback math for demo.");
+        const fallbackRate = pulseData?.[baseCurrency]?.current_rate || 90.00;
+        sbData = {
+          exchangeRateUsed: fallbackRate,
+          amountReceived: parseFloat(amountSent) * fallbackRate,
+          traditionalBankFee: parseFloat(amountSent) * 0.05,
+          ethixNodeFee: parseFloat(amountSent) * 0.005,
+        };
+      }
+
+      setResult({
+        ...sbData,
+        aiRecommendation: aiResult.signal,
+        confidence: aiResult.confidence_score,
+        reasoning: aiResult.reasoning,
+        volatility: aiResult.volatility_index
+      });
+      
       await fetchPulse();
     } catch (err) {
-      setError('Connection to transaction ledger timed out. Is Spring Boot running?');
+      console.error(err);
+      setError('Error communicating with the AI Engine. Ensure FastAPI is running on Port 8000.');
     } finally {
       setLoading(false);
+      setLoadingText('');
     }
   };
 
@@ -406,14 +462,20 @@ export default function Home({ user, onLogout }) {
                             </div>
                           </div>
                           
+                          {/* THE FIX: Added a "24h Change" label under the percentage */}
                           <div className="trend-rate" style={{ display: 'flex', alignItems: 'center' }}>
                             {Number(pulseData?.[code]?.current_rate || 0).toFixed(2)}
-                            <span 
-                              className={(pulseData?.[code]?.change_pct || 0) >= 0 ? 'text-green' : 'text-red'} 
-                              style={{ fontSize: '1.2rem', marginLeft: '16px', fontWeight: '600' }}
-                            >
-                              {(pulseData?.[code]?.change_pct || 0) > 0 ? '+' : ''}{Number(pulseData?.[code]?.change_pct || 0).toFixed(2)}%
-                            </span>
+                            <div style={{ display: 'flex', flexDirection: 'column', marginLeft: '16px' }}>
+                               <span 
+                                 className={(pulseData?.[code]?.change_pct || 0) >= 0 ? 'text-green' : 'text-red'} 
+                                 style={{ fontSize: '1.2rem', fontWeight: '600' }}
+                               >
+                                 {(pulseData?.[code]?.change_pct || 0) > 0 ? '+' : ''}{Number(pulseData?.[code]?.change_pct || 0).toFixed(2)}%
+                               </span>
+                               <span style={{ fontSize: '0.75rem', color: '#a1a1aa', marginTop: '-2px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                 24h Change
+                               </span>
+                            </div>
                           </div>
 
                           <div className="trend-chart-large">
@@ -508,8 +570,8 @@ export default function Home({ user, onLogout }) {
                     <input type="number" value={amountSent} onChange={(e) => setAmountSent(e.target.value)} min="1" />
                   </div>
                   <div className="button-group">
-                    <button type="submit" className="primary-btn" disabled={loading}>
-                      {loading ? 'Analyzing Market...' : 'Simulate Transfer'}
+                    <button type="submit" className="primary-btn" disabled={loading} style={{ minWidth: '200px' }}>
+                      {loading ? loadingText || 'Initializing...' : 'Simulate Transfer'}
                     </button>
                   </div>
                 </form>
@@ -526,20 +588,28 @@ export default function Home({ user, onLogout }) {
                       </div>
                       
                       <div className="metrics-grid">
-                        <div className="metric-box outline">
+                        
+                        <div className="metric-box outline" style={{ gridColumn: '1 / -1' }}>
                           <div className="metric-header-row">
-                            <span className="label">AI Recommendation</span>
+                            <span className="label">AI Intelligence Report</span>
                             <span className="info-icon">i</span>
                           </div>
-                          <strong className={result?.aiRecommendation === 'SEND_NOW' ? 'text-green' : 'text-red'}>
+                          <strong className={result?.aiRecommendation === 'SEND_NOW' ? 'text-green' : 'text-orange'} style={{ fontSize: '1.5rem', display: 'block', marginBottom: '8px' }}>
                             {result?.aiRecommendation || 'UNKNOWN'}
                           </strong>
-                          <p className="ai-explanation">
-                            {result?.aiRecommendation === 'SEND_NOW' 
-                              ? 'Market volatility is low. Current rate is optimal for settlement.' 
-                              : 'Forecast predicts a favorable rate movement within the next 6-12 hours.'}
+                          <p className="ai-explanation" style={{ fontSize: '0.9rem', color: '#a1a1aa', lineHeight: '1.5' }}>
+                            {result?.reasoning}
                           </p>
+                          <div style={{ marginTop: '16px', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                            <span style={{ backgroundColor: 'rgba(56, 189, 248, 0.1)', border: '1px solid rgba(56, 189, 248, 0.3)', padding: '6px 12px', borderRadius: '6px', fontSize: '0.8rem', color: '#38bdf8' }}>
+                              Confidence Score: {result?.confidence}%
+                            </span>
+                            <span style={{ backgroundColor: 'rgba(251, 146, 60, 0.1)', border: '1px solid rgba(251, 146, 60, 0.3)', padding: '6px 12px', borderRadius: '6px', fontSize: '0.8rem', color: '#fb923c' }}>
+                              Market Volatility: {result?.volatility}/10
+                            </span>
+                          </div>
                         </div>
+
                         <div className="metric-box outline">
                           <span className="label">Exchange Rate Locked</span>
                           <strong>{Number(result?.exchangeRateUsed || 0).toFixed(4)}</strong>
