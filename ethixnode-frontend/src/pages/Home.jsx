@@ -4,6 +4,7 @@ import { AreaChart, Area, ResponsiveContainer, Tooltip, YAxis, XAxis } from 'rec
 import { Link } from 'react-router-dom';
 import WalletManager from '../components/WalletManager';
 import LiveLedger from '../components/LiveLedger';
+import HistoricalAccuracy from '../components/HistoricalAccuracy';
 
 // -------------------------------------------------------------
 // 1. ERROR BOUNDARY
@@ -538,6 +539,10 @@ export default function Home({ user, onLogout }) {
             <div className="section-heading">
                <h2>Test the Engine</h2>
                <p>Select your currencies and amount to see the AI forecasting in action.</p>
+            </div>
+
+            <div className="app-wrapper" style={{ paddingBottom: '2rem' }}>
+               <HistoricalAccuracy />
             </div>
 
             <div className="dashboard-container">
