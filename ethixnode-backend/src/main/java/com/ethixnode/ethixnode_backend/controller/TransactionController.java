@@ -1,66 +1,61 @@
 package com.ethixnode.ethixnode_backend.controller;
 
-import com.ethixnode.ethixnode_backend.model.Transaction;
-import com.ethixnode.ethixnode_backend.repository.TransactionRepository;
-import com.ethixnode.ethixnode_backend.service.AiIntegrationService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 @RestController
 @RequestMapping("/api/transactions")
-@CrossOrigin(origins = "*")
 public class TransactionController {
 
-    private final TransactionRepository transactionRepository;
-    private final AiIntegrationService aiIntegrationService;
+    // Simulating a database of historical records for the hackathon
+    private final List<Map<String, Object>> mockDatabase = new ArrayList<>();
 
-    public TransactionController(TransactionRepository transactionRepository, AiIntegrationService aiIntegrationService) {
-        this.transactionRepository = transactionRepository;
-        this.aiIntegrationService = aiIntegrationService;
+    public TransactionController() {
+        // Generate 45 fake historical transactions when the server starts
+        String[] networks = {"Wise", "EthixNode Direct", "Polygon Web3", "Ripple Net"};
+        String[] routes = {"USD → INR", "EUR → NGN", "GBP → MXN", "CAD → BRL", "AUD → PHP"};
+        Random random = new Random();
+
+        for (int i = 0; i < 45; i++) {
+            double amount = 100 + (random.nextDouble() * 2000);
+            mockDatabase.add(Map.of(
+                "id", "HIST-" + (System.currentTimeMillis() - (i * 100000)),
+                "timestamp", LocalDateTime.now().minusMinutes(i * 15).format(DateTimeFormatter.ofPattern("HH:mm:ss")),
+                "route", routes[random.nextInt(routes.length)],
+                "network", networks[random.nextInt(networks.length)],
+                "amount", String.format("%.2f", amount),
+                "savings", String.format("+%.2f Saved", (amount * 0.05) - (amount * 0.005))
+            ));
+        }
     }
 
-    @GetMapping("/rates")
-    public ResponseEntity<?> getLivePulse() {
-        String[] pairs = {"USD", "EUR", "GBP"};
-        Map<String, Object> pulseData = new HashMap<>();
+    @GetMapping("/history")
+    public ResponseEntity<?> getTransactionHistory(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "5") int limit) {
         
-        for (String base : pairs) {
-            try {
-                pulseData.put(base, aiIntegrationService.getForecast(base, "INR"));
-            } catch (Exception e) {
-                // Skip failed pair to keep the rest of the UI working
-            }
+        int totalRecords = mockDatabase.size();
+        int totalPages = (int) Math.ceil((double) totalRecords / limit);
+        
+        // Calculate pagination slices
+        int startIndex = (page - 1) * limit;
+        int endIndex = Math.min(startIndex + limit, totalRecords);
+
+        // Prevent out-of-bounds errors if they request a page that doesn't exist
+        if (startIndex >= totalRecords) {
+            return ResponseEntity.ok(Map.of("data", new ArrayList<>(), "currentPage", page, "totalPages", totalPages));
         }
-        return ResponseEntity.ok(pulseData);
-    }
 
-    @PostMapping("/simulate")
-    public ResponseEntity<?> simulateTransfer(@RequestBody TransferRequest request) {
-        try {
-            if (request.baseCurrency().equals(request.targetCurrency())) {
-                return ResponseEntity.badRequest().body("Remittance requires a currency exchange.");
-            }
+        List<Map<String, Object>> paginatedList = mockDatabase.subList(startIndex, endIndex);
 
-            Map<String, Object> aiData = aiIntegrationService.getForecast(request.baseCurrency(), request.targetCurrency());
-            Double currentRate = ((Number) aiData.get("current_rate")).doubleValue();
-            String aiAdvice = (String) aiData.get("forecast_trend");
-
-            Transaction transaction = new Transaction();
-            transaction.setBaseCurrency(request.baseCurrency());
-            transaction.setTargetCurrency(request.targetCurrency());
-            transaction.setAmountSent(request.amountSent());
-            transaction.setExchangeRateUsed(currentRate);
-            transaction.setAmountReceived(request.amountSent() * currentRate);
-            transaction.setTraditionalBankFee(request.amountSent() * 0.05);
-            transaction.setEthixNodeFee(request.amountSent() * 0.005);
-            transaction.setAiRecommendation(aiAdvice);
-
-            return ResponseEntity.ok(transactionRepository.save(transaction));
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError().body(e.getMessage());
-        }
+        return ResponseEntity.ok(Map.of(
+            "data", paginatedList,
+            "currentPage", page,
+            "totalPages", totalPages
+        ));
     }
 }
-
-record TransferRequest(String baseCurrency, String targetCurrency, Double amountSent) {}
