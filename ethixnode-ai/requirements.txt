@@ -10,3 +10,8 @@ yfinance
 pandas
 feedparser
 nltk
+
+# Deep Learning & Database
+torch
+scikit-learn
+psycopg2-binary
