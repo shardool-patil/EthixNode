@@ -5,6 +5,8 @@ uvicorn
 # Data Validation
 pydantic
 
-# Data Processing & Market APIs (For your future ML roadmap)
+# Data Processing & NLP
 yfinance
 pandas
+feedparser
+nltk

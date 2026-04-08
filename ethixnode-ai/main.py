@@ -1,92 +1,99 @@
-from fastapi import FastAPI, BackgroundTasks, HTTPException
+from fastapi import FastAPI, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+import asyncio
 import uuid
 import random
-import asyncio
+
+# Import the new Sentiment Engine we just built!
+from sentiment_engine import SentimentEngine
 
 app = FastAPI(title="EthixNode AI Engine")
 
-# Allow the React frontend to communicate with this service
+# Allow React (Port 5173) to talk to FastAPI (Port 8000)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # In production, restrict this to your frontend URL
+    allow_origins=["http://localhost:5173"], 
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# In-memory dictionary to hold the status of background jobs
-# (In a large-scale production app, you would use Redis for this)
-job_queue = {}
+# Initialize the NLP Engine globally
+nlp_engine = SentimentEngine()
 
-# --- Request Data Model ---
-class TransactionData(BaseModel):
+# In-memory dictionary to hold background jobs
+prediction_jobs = {}
+
+# Define the exact JSON structure we expect from React
+class TransferRequest(BaseModel):
     amount: float
     base_currency: str
     target_currency: str
     network: str
 
-# --- The "Heavy" AI Function ---
-async def process_ml_prediction(job_id: str, data: TransactionData):
+async def process_ai_prediction(job_id: str, request: TransferRequest):
     """
-    Simulates a heavy machine learning inference task (like running an LSTM model).
+    Background task that simulates heavy AI processing and uses real NLP sentiment.
     """
-    # Simulate heavy processing time (e.g., 3 seconds) without blocking the server
-    await asyncio.sleep(3.0)
+    prediction_jobs[job_id] = {"status": "PROCESSING", "result": None}
     
-    # Simulate AI logic analyzing market volatility
-    volatility_score = random.uniform(0.1, 9.9)
+    # 1. Simulate the time it takes for a complex neural network to run
+    await asyncio.sleep(2.5) 
     
-    if volatility_score > 6.5:
-        signal = "OVERRIDE"
-        reason = f"High volatility detected in {data.base_currency}/{data.target_currency} pairing. Expected to stabilize in 12 hours."
-        confidence = round(random.uniform(75.0, 92.0), 1)
-    else:
+    # 2. Fetch REAL market sentiment from Yahoo Finance RSS
+    sentiment_data = nlp_engine.fetch_market_sentiment(request.target_currency)
+    
+    # 3. Calculate Volatility & Confidence based on Sentiment
+    base_volatility = random.uniform(4.0, 9.5)
+    
+    # If the market is panicking, volatility spikes. If it's bullish, it stabilizes.
+    if sentiment_data['status'] == 'BEARISH':
+        volatility_index = min(10.0, base_volatility + 2.5)
+        confidence_score = random.uniform(60.0, 75.0)
+        signal = "WAIT"
+        reasoning = f"High risk detected. Market sentiment is {sentiment_data['status']} (Score: {sentiment_data['score']}). Recent news suggests holding off on {request.target_currency} transfers. Top headline: '{sentiment_data['top_headline']}'"
+        
+    elif sentiment_data['status'] == 'BULLISH':
+        volatility_index = max(1.0, base_volatility - 1.5)
+        confidence_score = random.uniform(85.0, 98.0)
         signal = "SEND_NOW"
-        reason = "Favorable exchange conditions detected based on historical trends."
-        confidence = round(random.uniform(88.0, 99.0), 1)
+        reasoning = f"Favorable conditions. Market sentiment is {sentiment_data['status']} (Score: {sentiment_data['score']}). Positive news is driving {request.target_currency} stability. Top headline: '{sentiment_data['top_headline']}'"
+        
+    else: # NEUTRAL or Fallback
+        volatility_index = base_volatility
+        confidence_score = random.uniform(75.0, 88.0)
+        signal = "SEND_NOW" if volatility_index < 7.0 else "WAIT"
+        reasoning = f"Normal market conditions. Sentiment is {sentiment_data['status']}. AI algorithmic reading of historical trends dictates a {signal} signal."
 
-    # Save the computed result back to the job queue
-    job_queue[job_id] = {
+    # 4. Save the final calculated result to the job dictionary
+    prediction_jobs[job_id] = {
         "status": "COMPLETED",
         "result": {
             "signal": signal,
-            "confidence_score": confidence,
-            "reasoning": reason,
-            "volatility_index": round(volatility_score, 2)
+            "confidence_score": round(confidence_score, 1),
+            "volatility_index": round(volatility_index, 2),
+            "reasoning": reasoning,
+            "nlp_metadata": sentiment_data # Pass the raw data back just in case
         }
     }
-    print(f"Background Job {job_id} successfully completed!")
-
-# --- API Endpoints ---
 
 @app.post("/api/ai/predict")
-async def trigger_prediction(data: TransactionData, background_tasks: BackgroundTasks):
+async def request_prediction(request: TransferRequest, background_tasks: BackgroundTasks):
     """
-    ENDPOINT 1: Receives the data, assigns a Job ID, and throws the heavy
-    computation into the background. Returns instantly.
+    Endpoint that React hits. It generates a Job ID and hands the heavy lifting
+    off to a background task so the frontend doesn't freeze.
     """
-    job_id = str(uuid.uuid4())
-    
-    # Initialize the job status
-    job_queue[job_id] = {"status": "PROCESSING", "result": None}
-    
-    # Add the heavy function to FastAPI's background thread pool
-    background_tasks.add_task(process_ml_prediction, job_id, data)
-    
-    return {
-        "message": "AI prediction queued successfully",
-        "job_id": job_id,
-        "status": "PROCESSING"
-    }
+    job_id = f"ETHIX-{uuid.uuid4().hex[:6].upper()}"
+    background_tasks.add_task(process_ai_prediction, job_id, request)
+    return {"job_id": job_id, "status": "QUEUED"}
 
 @app.get("/api/ai/status/{job_id}")
 async def get_prediction_status(job_id: str):
     """
-    ENDPOINT 2: The frontend polls this endpoint to check if the AI is done.
+    Endpoint that React polls every second to check if the AI is done thinking.
     """
-    if job_id not in job_queue:
-        raise HTTPException(status_code=404, detail="Job ID not found")
-        
-    return job_queue[job_id]
+    job = prediction_jobs.get(job_id)
+    if not job:
+        return {"status": "NOT_FOUND"}
+    return job
