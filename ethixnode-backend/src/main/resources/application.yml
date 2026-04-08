@@ -31,6 +31,10 @@ spring:
         registration:
           github:
             redirectUri: "{baseUrl}/login/oauth2/code/{registrationId}"
+  data:
+    redis:
+      host: localhost
+      port: 6379
 
 ethixnode:
   ai:

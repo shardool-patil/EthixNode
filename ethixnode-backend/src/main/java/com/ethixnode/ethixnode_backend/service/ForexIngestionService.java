@@ -4,6 +4,8 @@ import com.ethixnode.ethixnode_backend.model.HistoricalRate;
 import com.ethixnode.ethixnode_backend.repository.HistoricalRateRepository;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -50,14 +52,12 @@ public class ForexIngestionService {
         }
     }
 
-    // UPGRADED: 14-Day Backfill Engine
     private void backfill14DaysOfHistory() {
         for (String curr : TARGET_CURRENCIES) {
             List<HistoricalRate> liveRateData = rateRepository.findTop14ByCurrencyCodeOrderByRecordedAtDesc(curr);
             if (!liveRateData.isEmpty()) {
                 double liveRate = liveRateData.get(0).getExchangeRate();
                 
-                // Go backwards in time 14 days
                 for (int daysAgo = 1; daysAgo <= 14; daysAgo++) {
                     double variance = (Math.random() - 0.5) * 0.5; 
                     double historicalRate = Math.round((liveRate + variance) * 10000.0) / 10000.0;
@@ -74,6 +74,8 @@ public class ForexIngestionService {
         System.out.println("✅ 14-Day Historical Backfill Complete!");
     }
 
+    // THE FIX: Delete the old Redis cache whenever we fetch fresh internet data!
+    @CacheEvict(value = "marketPulse", allEntries = true)
     @Scheduled(fixedRate = 3600000)
     public void fetchLiveRatesAndSaveToDatabase() {
         System.out.println("⏳ Waking up: Fetching real-world Forex rates...");
@@ -95,20 +97,22 @@ public class ForexIngestionService {
                         rateRepository.save(newRate);
                     }
                 }
-                System.out.println("✅ Live Forex Rates securely saved to PostgreSQL DB!");
+                System.out.println("✅ Live Forex Rates securely saved to PostgreSQL DB and Cache Evicted!");
             }
         } catch (Exception e) {
             System.err.println("⚠️ Failed to ingest live rates: " + e.getMessage());
         }
     }
 
+    // THE FIX: Save the result of this massive calculation to Redis!
+    @Cacheable(value = "marketPulse")
     public Map<String, Object> getLatestMarketPulse() {
+        System.out.println("⚡ CACHE MISS: Querying PostgreSQL and calculating chart math...");
         Map<String, Object> marketData = new HashMap<>();
         
         for (String curr : TARGET_CURRENCIES) {
             Map<String, Object> currencyInfo = new HashMap<>();
             
-            // Ask for 14 points
             List<HistoricalRate> recentRates = rateRepository.findTop14ByCurrencyCodeOrderByRecordedAtDesc(curr);
                 
             double[] history = new double[14];
@@ -118,12 +122,10 @@ public class ForexIngestionService {
                 currentRate = recentRates.get(0).getExchangeRate();
                 int availablePoints = Math.min(recentRates.size(), 14);
                 
-                // Fill the end of the array with the real data
                 for (int i = 0; i < availablePoints; i++) {
                     history[13 - i] = recentRates.get(i).getExchangeRate();
                 }
                 
-                // If the DB is new (<14 points), generate a synthetic curve for the missing days
                 if (availablePoints < 14) {
                     for (int i = 0; i < 14 - availablePoints; i++) {
                         double variance = (Math.random() - 0.5) * 0.4; 
@@ -140,7 +142,6 @@ public class ForexIngestionService {
                 currencyInfo.put("trend", changePct >= 0 ? "SEND_NOW" : "WAIT");
                 
             } else {
-                // Fallback for an empty database
                 double baseRate = switch(curr) {
                     case "USD" -> 83.50; case "EUR" -> 90.10; case "GBP" -> 105.20;
                     case "SGD" -> 61.80; case "AED" -> 22.70; default -> 90.00;
