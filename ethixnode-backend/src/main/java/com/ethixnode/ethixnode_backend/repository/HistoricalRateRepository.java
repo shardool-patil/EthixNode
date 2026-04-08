@@ -9,6 +9,6 @@ import java.util.List;
 @Repository
 public interface HistoricalRateRepository extends JpaRepository<HistoricalRate, Long> {
     
-    // Custom query to grab the 30 most recent rates for our future AI backtest graph!
-    List<HistoricalRate> findTop30ByCurrencyCodeOrderByRecordedAtDesc(String currencyCode);
+    // Upgraded to fetch the last 14 days of data!
+    List<HistoricalRate> findTop14ByCurrencyCodeOrderByRecordedAtDesc(String currencyCode);
 }

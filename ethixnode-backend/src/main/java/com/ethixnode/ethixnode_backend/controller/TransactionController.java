@@ -1,61 +1,79 @@
 package com.ethixnode.ethixnode_backend.controller;
 
+import com.ethixnode.ethixnode_backend.model.Transaction;
+import com.ethixnode.ethixnode_backend.service.ForexIngestionService;
+import com.ethixnode.ethixnode_backend.service.LedgerService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/transactions")
+@CrossOrigin(origins = "http://localhost:5173")
 public class TransactionController {
 
-    // Simulating a database of historical records for the hackathon
-    private final List<Map<String, Object>> mockDatabase = new ArrayList<>();
+    @Autowired
+    private ForexIngestionService forexService;
 
-    public TransactionController() {
-        // Generate 45 fake historical transactions when the server starts
-        String[] networks = {"Wise", "EthixNode Direct", "Polygon Web3", "Ripple Net"};
-        String[] routes = {"USD → INR", "EUR → NGN", "GBP → MXN", "CAD → BRL", "AUD → PHP"};
-        Random random = new Random();
+    @Autowired
+    private LedgerService ledgerService;
 
-        for (int i = 0; i < 45; i++) {
-            double amount = 100 + (random.nextDouble() * 2000);
-            mockDatabase.add(Map.of(
-                "id", "HIST-" + (System.currentTimeMillis() - (i * 100000)),
-                "timestamp", LocalDateTime.now().minusMinutes(i * 15).format(DateTimeFormatter.ofPattern("HH:mm:ss")),
-                "route", routes[random.nextInt(routes.length)],
-                "network", networks[random.nextInt(networks.length)],
-                "amount", String.format("%.2f", amount),
-                "savings", String.format("+%.2f Saved", (amount * 0.05) - (amount * 0.005))
-            ));
-        }
+    @GetMapping("/rates")
+    public ResponseEntity<Map<String, Object>> getLiveRates() {
+        return ResponseEntity.ok(forexService.getLatestMarketPulse());
     }
 
-    @GetMapping("/history")
-    public ResponseEntity<?> getTransactionHistory(
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "5") int limit) {
+    @PostMapping("/simulate")
+    public ResponseEntity<Map<String, Object>> simulateTransaction(@RequestBody Map<String, Object> payload) {
+        String baseCurrency = (String) payload.get("baseCurrency");
+        String targetCurrency = (String) payload.get("targetCurrency");
+        Double amountSent = Double.valueOf(payload.get("amountSent").toString());
         
-        int totalRecords = mockDatabase.size();
-        int totalPages = (int) Math.ceil((double) totalRecords / limit);
-        
-        // Calculate pagination slices
-        int startIndex = (page - 1) * limit;
-        int endIndex = Math.min(startIndex + limit, totalRecords);
+        // THE FIX: Grab the AI Signal from React!
+        String aiSignal = payload.containsKey("aiSignal") ? (String) payload.get("aiSignal") : "PENDING_AI";
 
-        // Prevent out-of-bounds errors if they request a page that doesn't exist
-        if (startIndex >= totalRecords) {
-            return ResponseEntity.ok(Map.of("data", new ArrayList<>(), "currentPage", page, "totalPages", totalPages));
+        Map<String, Object> marketData = forexService.getLatestMarketPulse();
+        double exchangeRateUsed = 90.00; 
+        
+        if (marketData.containsKey(baseCurrency)) {
+            Map<String, Object> currencyData = (Map<String, Object>) marketData.get(baseCurrency);
+            exchangeRateUsed = (Double) currencyData.get("current_rate");
         }
 
-        List<Map<String, Object>> paginatedList = mockDatabase.subList(startIndex, endIndex);
+        double amountReceived = amountSent * exchangeRateUsed;
+        double traditionalBankFee = amountSent * 0.05;
+        double ethixNodeFee = amountSent * 0.005;
 
-        return ResponseEntity.ok(Map.of(
-            "data", paginatedList,
-            "currentPage", page,
-            "totalPages", totalPages
-        ));
+        String transactionId = "TXN-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+
+        // Pass the aiSignal into the new Transaction object here
+        Transaction newTransaction = new Transaction(
+                transactionId, baseCurrency, targetCurrency, 
+                amountSent, amountReceived, exchangeRateUsed, aiSignal
+        );
+
+        ledgerService.executeImmutableTransfer(newTransaction, "DEMO_USER_99");
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("id", transactionId);
+        response.put("exchangeRateUsed", Math.round(exchangeRateUsed * 10000.0) / 10000.0);
+        response.put("amountReceived", Math.round(amountReceived * 100.0) / 100.0);
+        response.put("traditionalBankFee", Math.round(traditionalBankFee * 100.0) / 100.0);
+        response.put("ethixNodeFee", Math.round(ethixNodeFee * 100.0) / 100.0);
+
+        return ResponseEntity.ok(response);
+    }
+
+    @Autowired
+    private com.ethixnode.ethixnode_backend.repository.TransactionRepository transactionRepo;
+
+    @GetMapping("/history")
+    public ResponseEntity<java.util.List<Transaction>> getTransactionHistory() {
+        // Fetches the most recent 10 transactions from the ledger
+        return ResponseEntity.ok(transactionRepo.findTop10ByOrderByCreatedAtDesc());
     }
 }

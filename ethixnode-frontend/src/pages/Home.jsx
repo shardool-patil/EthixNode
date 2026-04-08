@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 import WalletManager from '../components/WalletManager';
 import LiveLedger from '../components/LiveLedger';
 import HistoricalAccuracy from '../components/HistoricalAccuracy';
+import TransactionLedger from '../components/TransactionLedger';
 
 // -------------------------------------------------------------
 // 1. ERROR BOUNDARY
@@ -183,8 +184,6 @@ export default function Home({ user, onLogout }) {
   const carouselPairs = ['USD', 'EUR', 'GBP', 'SGD', 'AED'];
   const [activeSlide, setActiveSlide] = useState(0);
 
-  // THE FIX: The change_pct is now mathematically perfect based on the history array.
-  // ((Current Rate - Yesterday's Rate) / Yesterday's Rate) * 100
   const [pulseData, setPulseData] = useState({
     USD: { current_rate: 92.88, change_pct: 0.14, forecast_trend: 'WAIT', history: [92.10, 92.40, 93.10, 92.50, 92.75, 92.88] },
     EUR: { current_rate: 107.28, change_pct: -0.20, forecast_trend: 'WAIT', history: [106.10, 106.50, 108.40, 109.20, 107.50, 107.28] },
@@ -204,7 +203,14 @@ export default function Home({ user, onLogout }) {
     try {
       const response = await axios.get('http://localhost:8080/api/transactions/rates');
       if (response.data && typeof response.data === 'object' && !Array.isArray(response.data) && response.data.USD) {
-         setPulseData(prev => ({...prev, ...response.data}));
+         // FIX: Deep merge so we don't overwrite the change_pct with undefined!
+         setPulseData(prev => {
+            const newData = { ...prev };
+            Object.keys(response.data).forEach(key => {
+               newData[key] = { ...prev[key], ...response.data[key] };
+            });
+            return newData;
+         });
       }
     } catch (err) {
       console.error("Live Sync deferred. Using fallback baseline data.", err.message);
@@ -262,7 +268,8 @@ export default function Home({ user, onLogout }) {
         const sbResponse = await axios.post('http://localhost:8080/api/transactions/simulate', {
           baseCurrency,
           targetCurrency,
-          amountSent: parseFloat(amountSent)
+          amountSent: parseFloat(amountSent),
+          aiSignal: aiResult.signal
         });
         sbData = sbResponse.data;
       } catch (sbErr) {
@@ -438,6 +445,13 @@ export default function Home({ user, onLogout }) {
             </section>
           )}
 
+          {/* FIX: Wrapped TransactionLedger in proper structural tags so it displays correctly */}
+          <section className="app-wrapper" style={{ paddingTop: '40px', paddingBottom: '20px' }}>
+             <ErrorBoundary>
+                <TransactionLedger />
+             </ErrorBoundary>
+          </section>
+
           <section className="market-carousel-section">
             <div className="carousel-container">
               <div className="carousel-text">
@@ -463,7 +477,6 @@ export default function Home({ user, onLogout }) {
                             </div>
                           </div>
                           
-                          {/* THE FIX: Added a "24h Change" label under the percentage */}
                           <div className="trend-rate" style={{ display: 'flex', alignItems: 'center' }}>
                             {Number(pulseData?.[code]?.current_rate || 0).toFixed(2)}
                             <div style={{ display: 'flex', flexDirection: 'column', marginLeft: '16px' }}>
@@ -480,7 +493,11 @@ export default function Home({ user, onLogout }) {
                           </div>
 
                           <div className="trend-chart-large">
-                            <InteractiveChart data={pulseData?.[code]?.history || []} trend={pulseData?.[code]?.forecast_trend || 'WAIT'} />
+                            {/* FIX: Now checks for both 'historical_data' (Java API) OR 'history' (Mock Fallback) */}
+                            <InteractiveChart 
+                               data={pulseData?.[code]?.historical_data || pulseData?.[code]?.history || []} 
+                               trend={pulseData?.[code]?.forecast_trend || 'WAIT'} 
+                            />
                           </div>
                         </div>
                       </ErrorBoundary>
