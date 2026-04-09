@@ -1,14 +1,18 @@
 package com.ethixnode.ethixnode_backend.config;
 
+import com.ethixnode.ethixnode_backend.security.JwtAuthenticationFilter;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -19,16 +23,24 @@ import java.util.Arrays;
 @EnableWebSecurity
 public class SecurityConfig {
 
+    @Autowired
+    private JwtAuthenticationFilter jwtAuthFilter; // INJECT OUR NEW GUARD
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
             .csrf(csrf -> csrf.disable())
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(auth -> auth
-                // THE FIX: Added "/api/alerts/**" to the permitAll list so React can save new alerts!
-                .requestMatchers("/ws-ledger/**", "/api/transactions/**", "/api/alerts/**", "/api/auth/logout", "/api/auth/register", "/api/auth/login").permitAll() 
+                .requestMatchers("/ws-ledger/**", "/api/transactions/**", "/api/alerts/**", "/api/auth/**").permitAll() 
                 .anyRequest().authenticated()
             )
+            // THE MAJOR FIX: Tell Spring to stop using session cookies entirely!
+            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            
+            // Put our JWT guard in front of the standard password guard
+            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+            
             .oauth2Login(oauth2 -> oauth2
                 .defaultSuccessUrl("http://localhost:5173/", true)
             );
@@ -36,13 +48,11 @@ public class SecurityConfig {
         return http.build();
     }
 
-    // Required to hash passwords in the database
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
-    // Required to manually trigger authentication in our controller
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration authConfig) throws Exception {
         return authConfig.getAuthenticationManager();
