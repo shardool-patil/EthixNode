@@ -40,6 +40,7 @@ public class TransactionController {
         double exchangeRateUsed = 90.00; 
         
         if (marketData.containsKey(baseCurrency)) {
+            @SuppressWarnings("unchecked")
             Map<String, Object> currencyData = (Map<String, Object>) marketData.get(baseCurrency);
             exchangeRateUsed = (Double) currencyData.get("current_rate");
         }

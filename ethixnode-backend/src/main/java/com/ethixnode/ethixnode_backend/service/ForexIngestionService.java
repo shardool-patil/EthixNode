@@ -78,6 +78,7 @@ public class ForexIngestionService {
     }
 
     // Deletes the old Redis cache whenever we fetch fresh internet data!
+    @SuppressWarnings("unchecked")
     @CacheEvict(value = "marketPulse", allEntries = true)
     @Scheduled(fixedRate = 3600000)
     public void fetchLiveRatesAndSaveToDatabase() {
