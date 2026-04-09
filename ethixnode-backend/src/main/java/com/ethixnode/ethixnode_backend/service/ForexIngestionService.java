@@ -25,6 +25,9 @@ public class ForexIngestionService {
     @Autowired
     private HistoricalRateRepository rateRepository;
 
+    @Autowired
+    private AlertService alertService; // The Smart Alert integration!
+
     @PostConstruct
     public void smartStartupSync() {
         System.out.println("🔍 Checking Ledger for today's market data...");
@@ -74,7 +77,7 @@ public class ForexIngestionService {
         System.out.println("✅ 14-Day Historical Backfill Complete!");
     }
 
-    // THE FIX: Delete the old Redis cache whenever we fetch fresh internet data!
+    // Deletes the old Redis cache whenever we fetch fresh internet data!
     @CacheEvict(value = "marketPulse", allEntries = true)
     @Scheduled(fixedRate = 3600000)
     public void fetchLiveRatesAndSaveToDatabase() {
@@ -95,6 +98,9 @@ public class ForexIngestionService {
                             LocalDateTime.now()
                         );
                         rateRepository.save(newRate);
+                        
+                        // THE NEW FIX: Trigger the Smart Alert System to check user targets!
+                        alertService.checkAndNotify(curr, newRate.getExchangeRate(), "SEND_NOW");
                     }
                 }
                 System.out.println("✅ Live Forex Rates securely saved to PostgreSQL DB and Cache Evicted!");
@@ -104,7 +110,7 @@ public class ForexIngestionService {
         }
     }
 
-    // THE FIX: Save the result of this massive calculation to Redis!
+    // Saves the result of this massive calculation to Redis!
     @Cacheable(value = "marketPulse")
     public Map<String, Object> getLatestMarketPulse() {
         System.out.println("⚡ CACHE MISS: Querying PostgreSQL and calculating chart math...");

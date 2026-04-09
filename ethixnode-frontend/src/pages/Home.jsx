@@ -6,6 +6,7 @@ import WalletManager from '../components/WalletManager';
 import LiveLedger from '../components/LiveLedger';
 import HistoricalAccuracy from '../components/HistoricalAccuracy';
 import TransactionLedger from '../components/TransactionLedger';
+import SmartAlertModal from '../components/SmartAlertModal';
 
 // -------------------------------------------------------------
 // 1. ERROR BOUNDARY
@@ -172,6 +173,8 @@ const StatItem = ({ label, target, suffix = "" }) => {
 // 4. MAIN PAGE COMPONENT
 // -------------------------------------------------------------
 export default function Home({ user, onLogout }) {
+  const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
+
   const [baseCurrency, setBaseCurrency] = useState('EUR');
   const [targetCurrency, setTargetCurrency] = useState('INR');
   const [amountSent, setAmountSent] = useState(1000);
@@ -203,7 +206,6 @@ export default function Home({ user, onLogout }) {
     try {
       const response = await axios.get('http://localhost:8080/api/transactions/rates');
       if (response.data && typeof response.data === 'object' && !Array.isArray(response.data) && response.data.USD) {
-         // FIX: Deep merge so we don't overwrite the change_pct with undefined!
          setPulseData(prev => {
             const newData = { ...prev };
             Object.keys(response.data).forEach(key => {
@@ -327,7 +329,16 @@ export default function Home({ user, onLogout }) {
               <span>API Sandbox</span>
               
               {user ? (
-                <div className="user-profile-nav">
+                <div className="user-profile-nav" style={{ display: 'flex', alignItems: 'center' }}>
+                  {/* The Set Alert button is NOW HERE, only visible to logged-in users */}
+                  <button 
+                    onClick={() => setIsAlertModalOpen(true)}
+                    className="primary-btn" 
+                    style={{ padding: '6px 12px', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '6px', marginRight: '15px' }}
+                  >
+                    <span>🔔</span> Set Alert
+                  </button>
+
                   {user.avatar ? (
                     <img src={user.avatar} alt="Profile" className="user-avatar" style={{ objectFit: 'cover' }} />
                   ) : (
@@ -339,7 +350,7 @@ export default function Home({ user, onLogout }) {
                   </button>
                 </div>
               ) : (
-                <Link to="/login" style={{ textDecoration: 'none' }}>
+                <Link to="/login" style={{ textDecoration: 'none', marginLeft: '10px' }}>
                   <button className="nav-cta">
                     Sign In
                   </button>
@@ -445,7 +456,6 @@ export default function Home({ user, onLogout }) {
             </section>
           )}
 
-          {/* FIX: Wrapped TransactionLedger in proper structural tags so it displays correctly */}
           <section className="app-wrapper" style={{ paddingTop: '40px', paddingBottom: '20px' }}>
              <ErrorBoundary>
                 <TransactionLedger />
@@ -493,7 +503,6 @@ export default function Home({ user, onLogout }) {
                           </div>
 
                           <div className="trend-chart-large">
-                            {/* FIX: Now checks for both 'historical_data' (Java API) OR 'history' (Mock Fallback) */}
                             <InteractiveChart 
                                data={pulseData?.[code]?.historical_data || pulseData?.[code]?.history || []} 
                                trend={pulseData?.[code]?.forecast_trend || 'WAIT'} 
@@ -655,8 +664,15 @@ export default function Home({ user, onLogout }) {
               </div>
             </div>
           </section>
+
         </div>
       </div>
+
+      <SmartAlertModal 
+        isOpen={isAlertModalOpen} 
+        onClose={() => setIsAlertModalOpen(false)} 
+        user={user} 
+      />
     </ErrorBoundary>
   );
 }
