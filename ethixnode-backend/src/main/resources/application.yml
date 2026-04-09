@@ -31,6 +31,18 @@ spring:
         registration:
           github:
             redirectUri: "{baseUrl}/login/oauth2/code/{registrationId}"
+  
+  mail:
+    host: sandbox.smtp.mailtrap.io
+    port: 2525
+    username: your_mailtrap_username
+    password: your_mailtrap_password
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
   data:
     redis:
       host: localhost

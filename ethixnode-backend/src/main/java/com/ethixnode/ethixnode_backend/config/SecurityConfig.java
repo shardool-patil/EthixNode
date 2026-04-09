@@ -25,8 +25,8 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(auth -> auth
-                // THE FIX: Added "/ws-ledger/**" to the permitAll list so the React socket can connect!
-                .requestMatchers("/ws-ledger/**", "/api/transactions/**", "/api/auth/logout", "/api/auth/register", "/api/auth/login").permitAll() 
+                // THE FIX: Added "/api/alerts/**" to the permitAll list so React can save new alerts!
+                .requestMatchers("/ws-ledger/**", "/api/transactions/**", "/api/alerts/**", "/api/auth/logout", "/api/auth/register", "/api/auth/login").permitAll() 
                 .anyRequest().authenticated()
             )
             .oauth2Login(oauth2 -> oauth2
