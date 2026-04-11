@@ -12,7 +12,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -46,9 +45,28 @@ public class AuthController {
         user.setEmail(email);
         user.setPassword(passwordEncoder.encode(payload.get("password")));
         user.setProvider("LOCAL");
-        userRepository.save(user);
+        userRepository.saveAndFlush(user);
 
-        return ResponseEntity.ok(Map.of("message", "User registered successfully"));
+        // --- THE NEW PART: Create token immediately ---
+        // We create a UserDetails object manually to generate the token
+        UserDetails userDetails = org.springframework.security.core.userdetails.User
+                .withUsername(user.getEmail())
+                .password(user.getPassword())
+                .authorities(new java.util.ArrayList<>())
+                .build();
+
+        String jwtToken = jwtService.generateToken(userDetails);
+
+        // Return everything in ONE response
+        return ResponseEntity.ok(Map.of(
+            "message", "User registered successfully",
+            "token", jwtToken,
+            "user", Map.of(
+                "name", user.getName(),
+                "email", user.getEmail(),
+                "initials", user.getName().substring(0, 1).toUpperCase()
+            )
+        ));
     }
 
     @PostMapping("/login")
@@ -78,65 +96,31 @@ public class AuthController {
 
     @GetMapping("/user")
     public ResponseEntity<?> getUser(Authentication authentication) {
-        // Because of our JwtAuthenticationFilter, if React sends a valid token,
-        // this 'authentication' object will automatically be populated!
         if (authentication == null || !authentication.isAuthenticated()) {
             return ResponseEntity.status(401).body("Not authenticated");
         }
 
-        String name = "User";
-        String email = "";
-        String avatar = ""; 
+        // The JWT filter gives us the email directly in the Authentication object
+        String email = authentication.getName();
+        Optional<User> dbUser = userRepository.findByEmail(email);
 
-        Object principal = authentication.getPrincipal();
-
-        // If they logged in via GitHub
-        if (principal instanceof OAuth2User) {
-            OAuth2User oauthUser = (OAuth2User) principal;
-            name = oauthUser.getAttribute("name");
-            if (name == null) name = oauthUser.getAttribute("login");
+        if (dbUser.isPresent()) {
+            User user = dbUser.get();
+            String name = user.getName() != null ? user.getName() : "User";
+            String initials = name.substring(0, 1).toUpperCase();
             
-            Object emailObj = oauthUser.getAttribute("email");
-            if (emailObj != null) {
-                email = emailObj.toString();
-            } else {
-                email = oauthUser.getAttribute("login") + "@github.com"; 
-            }
-            
-            Object avatarObj = oauthUser.getAttribute("avatar_url");
-            if (avatarObj != null) avatar = avatarObj.toString();
+            // Extract the avatar we saved in the DB!
+            String avatar = user.getAvatar() != null ? user.getAvatar() : "";
 
-            // Auto-Save to PostgreSQL
-            if (email != null && !email.isEmpty()) {
-                Optional<User> existingUser = userRepository.findByEmail(email);
-                if (existingUser.isEmpty()) {
-                    User newUser = new User();
-                    newUser.setEmail(email);
-                    newUser.setName(name);
-                    newUser.setProvider("GITHUB");
-                    userRepository.save(newUser);
-                }
-            }
-        }
-        // If they logged in via our local database
-        else if (principal instanceof org.springframework.security.core.userdetails.User) {
-            org.springframework.security.core.userdetails.User localPrincipal = (org.springframework.security.core.userdetails.User) principal;
-            email = localPrincipal.getUsername();
-            Optional<User> dbUser = userRepository.findByEmail(email);
-            if (dbUser.isPresent()) {
-                name = dbUser.get().getName();
-            }
+            return ResponseEntity.ok(Map.of(
+                "name", name,
+                "email", user.getEmail(),
+                "avatar", avatar, 
+                "initials", initials
+            ));
         }
 
-        if (name == null || name.isEmpty()) name = "User";
-        String initials = name.substring(0, 1).toUpperCase();
-
-        return ResponseEntity.ok(Map.of(
-            "name", name,
-            "email", email,
-            "avatar", avatar, 
-            "initials", initials
-        ));
+        return ResponseEntity.status(404).body("User not found");
     }
 
     @GetMapping("/logout")

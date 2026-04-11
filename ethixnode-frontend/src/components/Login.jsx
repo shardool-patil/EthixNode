@@ -14,15 +14,22 @@ const Login = ({ onLogin }) => {
     setLoading(true);
 
     try {
-      await axios.post('http://localhost:8080/api/auth/login', { email, password });
+      // 1. Send credentials and CATCH the response
+      const loginResponse = await axios.post('http://localhost:8080/api/auth/login', { email, password });
+      
+      // 2. Extract and SAVE the token to local storage
+      if (loginResponse.data.token) {
+          localStorage.setItem('jwt_token', loginResponse.data.token);
+      }
+
+      // 3. Now when we fetch the user, the Axios Interceptor in App.jsx will automatically attach it!
       const userResponse = await axios.get('http://localhost:8080/api/auth/user');
       onLogin(userResponse.data);
+      
     } catch (err) {
       console.error("Login Error:", err);
-      // UPDATE: Your custom, helpful error message
       setError('Please check your email and password once again, or sign up if you are unregistered.');
       
-      // Auto-dismiss the popup after 5 seconds
       setTimeout(() => {
         setError(null);
       }, 5000);

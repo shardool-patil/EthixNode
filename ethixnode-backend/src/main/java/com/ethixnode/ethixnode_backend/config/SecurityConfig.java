@@ -1,6 +1,7 @@
 package com.ethixnode.ethixnode_backend.config;
 
 import com.ethixnode.ethixnode_backend.security.JwtAuthenticationFilter;
+import com.ethixnode.ethixnode_backend.security.OAuth2SuccessHandler;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -24,7 +25,10 @@ import java.util.Arrays;
 public class SecurityConfig {
 
     @Autowired
-    private JwtAuthenticationFilter jwtAuthFilter; // INJECT OUR NEW GUARD
+    private JwtAuthenticationFilter jwtAuthFilter;
+
+    @Autowired
+    private OAuth2SuccessHandler oauth2SuccessHandler; // INJECT THE NEW HANDLER
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -35,14 +39,10 @@ public class SecurityConfig {
                 .requestMatchers("/ws-ledger/**", "/api/transactions/**", "/api/alerts/**", "/api/auth/**").permitAll() 
                 .anyRequest().authenticated()
             )
-            // THE MAJOR FIX: Tell Spring to stop using session cookies entirely!
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            
-            // Put our JWT guard in front of the standard password guard
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
-            
             .oauth2Login(oauth2 -> oauth2
-                .defaultSuccessUrl("http://localhost:5173/", true)
+                .successHandler(oauth2SuccessHandler) // THE FIX: Use handler instead of defaultSuccessUrl
             );
             
         return http.build();

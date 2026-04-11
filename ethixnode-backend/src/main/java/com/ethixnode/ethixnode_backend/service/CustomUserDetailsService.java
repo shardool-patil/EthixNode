@@ -21,13 +21,13 @@ public class CustomUserDetailsService implements UserDetailsService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + email));
 
-        if (user.getPassword() == null) {
-            throw new UsernameNotFoundException("This user signed up with GitHub. Please use GitHub to log in.");
-        }
+        // THE FIX: If it's a GitHub user, their password is null in the DB.
+        // We supply an empty string instead of crashing, allowing the JWT Filter to accept them!
+        String password = user.getPassword() != null ? user.getPassword() : "";
 
         return new org.springframework.security.core.userdetails.User(
                 user.getEmail(),
-                user.getPassword(),
+                password,
                 new ArrayList<>() // Empty authorities/roles for now
         );
     }

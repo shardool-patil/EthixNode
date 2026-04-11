@@ -21,18 +21,18 @@ const Signup = ({ onLogin }) => {
     setLoading(true);
 
     try {
-      // 1. Send data to DB
-      await axios.post('http://localhost:8080/api/auth/register', { name, email, password });
+      // ONE REQUEST TO RULE THEM ALL
+      const response = await axios.post('http://localhost:8080/api/auth/register', { name, email, password });
       
-      // 2. If successful, automatically log them in
-      await axios.post('http://localhost:8080/api/auth/login', { email, password });
-      
-      // 3. Trigger the global state update in App.jsx
-      const userResponse = await axios.get('http://localhost:8080/api/auth/user');
-      onLogin(userResponse.data);
+      const { token, user } = response.data;
+
+      if (token) {
+        localStorage.setItem('jwt_token', token);
+        onLogin(user); // Pass the user data directly to your global state
+      }
     } catch (err) {
       console.error("Signup Error:", err);
-      setError(err.response?.data?.error || 'Failed to create account. Email may already be in use.');
+      setError(err.response?.data?.error || 'Connection error. Please try logging in directly.');
     } finally {
       setLoading(false);
     }
@@ -91,4 +91,4 @@ const Signup = ({ onLogin }) => {
   );
 };
 
-export default Signup;
+export default Signup;  
