@@ -3,6 +3,8 @@ import { ShieldCheck } from 'lucide-react';
 
 const TransactionLedger = () => {
   const [transactions, setTransactions] = useState([]);
+  // 1. Set the initial view to exactly 5 transactions
+  const [visibleCount, setVisibleCount] = useState(5);
 
   const fetchHistory = async () => {
     try {
@@ -20,6 +22,14 @@ const TransactionLedger = () => {
     const interval = setInterval(fetchHistory, 5000); 
     return () => clearInterval(interval);
   }, []);
+
+  // 2. The slice function: Ensures React only renders the allowed amount
+  const visibleTransactions = transactions.slice(0, visibleCount);
+
+  // 3. The Transparency trigger: Adds 5 more transactions to the view
+  const handleLoadMore = () => {
+    setVisibleCount(prevCount => prevCount + 5);
+  };
 
   return (
     <div className="glass-card" style={{ marginTop: '2rem', width: '100%' }}>
@@ -42,7 +52,8 @@ const TransactionLedger = () => {
             </tr>
           </thead>
           <tbody>
-            {transactions.map((txn) => (
+            {/* 4. Render only the sliced array */}
+            {visibleTransactions.map((txn) => (
               <tr key={txn.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', transition: 'background-color 0.2s' }}>
                 <td style={{ padding: '16px 8px', fontFamily: 'monospace', color: '#10b981', fontSize: '13px' }}>{txn.transactionHash}</td>
                 <td style={{ padding: '16px 8px', fontWeight: 'bold', color: '#fff' }}>{txn.baseCurrency} → {txn.targetCurrency}</td>
@@ -80,6 +91,45 @@ const TransactionLedger = () => {
           </div>
         )}
       </div>
+
+      {/* 5. The "Network Transparency" Button */}
+      {visibleCount < transactions.length && (
+        <div style={{ textAlign: 'center', marginTop: '20px', padding: '10px 0' }}>
+          <button 
+            onClick={handleLoadMore} 
+            style={{
+              background: 'rgba(59, 130, 246, 0.1)',
+              color: '#60a5fa',
+              border: '1px solid rgba(59, 130, 246, 0.3)',
+              padding: '10px 20px',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontWeight: 'bold',
+              fontSize: '12px',
+              letterSpacing: '1px',
+              textTransform: 'uppercase',
+              transition: 'all 0.3s ease'
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.background = 'rgba(59, 130, 246, 0.2)';
+              e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.5)';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.background = 'rgba(59, 130, 246, 0.1)';
+              e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.3)';
+            }}
+          >
+            Access Network Transparency Ledger (Load Previous)
+          </button>
+        </div>
+      )}
+
+      {/* 6. End of Ledger Indicator */}
+      {visibleCount >= transactions.length && transactions.length > 5 && (
+        <div style={{ textAlign: 'center', marginTop: '20px', color: 'rgba(255,255,255,0.2)', fontSize: '11px', letterSpacing: '1px', textTransform: 'uppercase' }}>
+          — End of Immutable Records —
+        </div>
+      )}
     </div>
   );
 };
